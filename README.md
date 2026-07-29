@@ -18,6 +18,49 @@ local IS_MAIN = false
 for _, n in ipairs(_G.main) do if n == myName then IS_MAIN = true end end
 warn("[WWHub] Role: " .. (IS_MAIN and "MAIN" or "UNKNOWN"))
 
+-- ถ้าไม่เจอ main คนอื่นใน 7 นาที → hop
+task.spawn(function()
+	if not IS_MAIN then return end
+	task.wait(5)
+
+	local function hasOtherMain()
+		for _, n in ipairs(_G.main) do
+			if n ~= myName and Players:FindFirstChild(n) then return true end
+		end
+		return false
+	end
+
+	-- รอ 7 นาที (42 ครั้ง x 10 วิ)
+	local found = false
+	for _ = 1, 42 do
+		if hasOtherMain() then found = true break end
+		task.wait(10)
+	end
+	if not found then
+		warn("[WWHub] No other main after 7min — hopping...")
+		pcall(function() game:GetService("TeleportService"):TeleportToRandomPlace(game.PlaceId) end)
+		return
+	end
+
+	-- loop check ทุก 2 นาที หลังจากนั้น
+	while true do
+		task.wait(120)
+		if not hasOtherMain() then
+			-- รอ 7 นาทีก่อน hop
+			local back = false
+			for _ = 1, 42 do
+				if hasOtherMain() then back = true break end
+				task.wait(10)
+			end
+			if not back then
+				warn("[WWHub] Main left — hopping...")
+				pcall(function() game:GetService("TeleportService"):TeleportToRandomPlace(game.PlaceId) end)
+				break
+			end
+		end
+	end
+end)
+
 -- ===== Vars =====
 local altCFrame   = CFrame.new(20000, 2000, 20000)
 local pauseCFrame = CFrame.new(156, 1, -43)
@@ -315,20 +358,61 @@ local function startFarm()
 	starting = false
 end
 
--- Team
+-- Team selection — สุ่มสีให้ main แต่ละคนอยู่คนละทีม
+-- ดึง index ของตัวเองใน _G.main เพื่อเลือก pad ต่างกัน
+local myMainIndex = 0
+for i, n in ipairs(_G.main) do if n == myName then myMainIndex = i break end end
+
+local allTeamPads = {"Red Team", "Blue Team", "Green Team", "Yellow Team"}
+
+local function getMyTeamPad()
+	-- ถ้าเป็น FFA ไม่มี pad
+	if not workspace:FindFirstChild("Red Team") and not workspace:FindFirstChild("Blue Team") then return nil end
+	-- หา pad ที่มีอยู่จริงในเกม
+	local availablePads = {}
+	for _, name in ipairs(allTeamPads) do
+		if workspace:FindFirstChild(name) then table.insert(availablePads, name) end
+	end
+	if #availablePads == 0 then return nil end
+	-- เลือก pad ตาม index ของตัวเองใน main list (กระจายทีม)
+	local padIndex = ((myMainIndex - 1) % #availablePads) + 1
+	return workspace:FindFirstChild(availablePads[padIndex])
+end
+
 local function selectTeam()
 	if selectingTeam then return end selectingTeam = true
-	local pad = workspace:FindFirstChild("Red Team") if not pad then selectingTeam=false return end
-	while workspace:FindFirstChild("Red Team") and not roundPaused do
+	local pad = getMyTeamPad()
+	if not pad then selectingTeam = false return end
+	while pad and pad.Parent and not roundPaused do
+		-- เช็คว่า pad ยังอยู่ไหม
+		local currentPad = getMyTeamPad()
+		if not currentPad then break end
 		local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
 		if hrp then
-			local pp = pad:IsA("BasePart") and pad or pad:FindFirstChildWhichIsA("BasePart")
+			local pp = currentPad:IsA("BasePart") and currentPad or currentPad:FindFirstChildWhichIsA("BasePart")
 			if pp then hrp.CFrame = pp.CFrame + Vector3.new(0,3,0) end
 		end
 		task.wait(0.1)
 	end
 	task.wait(0.5) selectingTeam = false
 end
+
+task.spawn(function()
+	-- เรียง FFA ก่อน team เพื่อลด chance เจอ team mode
+	local modes = {
+		"Free For All",  -- 1st priority
+		"Kills FFA",     -- 2nd
+		"Kills Team",    -- 3rd
+		"3 Teams",       -- 4th
+		"Team Battle",   -- 5th
+	}
+	while gui.Parent do
+		if loopMain and not roundPaused then
+			for _, m in ipairs(modes) do fireInput("mode", m) task.wait(0.3) end
+			task.wait(2)
+		else task.wait(3) end
+	end
+end)
 
 -- NoClip
 local noClipOn = false
@@ -536,7 +620,7 @@ task.spawn(function()
 	while gui.Parent do
 		task.wait(0.08)
 		if not loopMain then continue end
-		local pad = workspace:FindFirstChild("Red Team")
+		local pad = getMyTeamPad()
 		if pad and not selectingTeam and not roundPaused and not timerTpDone then task.spawn(selectTeam) end
 		if not selectingTeam and not starting and not roundPaused and not timerTpDone then
 			local mcf = getMainCF()
@@ -569,16 +653,6 @@ task.spawn(function()
 			local bm = getBlockedMode() if bm then pauseFarm(bm) end
 			task.wait(0.5)
 		else task.wait(2) end
-	end
-end)
-
-task.spawn(function()
-	local modes = {"Kills Team","Team Battle","3 Teams","Free For All","Kills FFA"}
-	while gui.Parent do
-		if loopMain and not roundPaused then
-			for _, m in ipairs(modes) do fireInput("mode", m) task.wait(0.3) end
-			task.wait(2)
-		else task.wait(3) end
 	end
 end)
 
