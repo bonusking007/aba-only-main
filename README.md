@@ -3,7 +3,7 @@ wait(2)
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"vqwakxxq1883", "uphq17xmfy97", "tdll37dwbm11", "zait72mvvs55", "hgca64abqt56", "shyf02vfkq94", "fvhphqfe5773", "btmtplsc8632", "hhzp76qotz71", "fzdcyplf2717", "nwxgioou1906", "egvp94melb17"}
+_G.main  = {"hnbe49wywy37", "uphq17xmfy97", "tdll37dwbm11", "zait72mvvs55", "hgca64abqt56", "shyf02vfkq94", "fvhphqfe5773", "btmtplsc8632", "hhzp76qotz71", "fzdcyplf2717", "nwxgioou1906", "egvp94melb17"}
 -- ==================
 
 setfpscap(20)
