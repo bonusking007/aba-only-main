@@ -1,4 +1,5 @@
 --- V.7.0 Main Only
+wait(2)
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
