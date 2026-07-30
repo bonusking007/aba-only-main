@@ -1,5 +1,4 @@
---- V.7.0 Main Only
-wait(2)
+--- V.7.0 Main Only + Gold-based dynamic point cap
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -87,7 +86,9 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 1500
+local pointCapLimit = 100000
+local GOLD_THRESHOLD = 30000
+local LOW_GOLD_CAP   = 500
 
 local WebhookURL = "https://discord.com/api/webhooks/1453628734090514533/ddACObJX5Iuv966TcspBAEmkd5Er2ZfiVCMdoHzyONWLJ1CoqlDaAn3vg9D1GiZkvPoR"
 local _request
@@ -243,6 +244,21 @@ local function getLevel()
 	return ok and v or "?"
 end
 
+-- ===== Gold / Dynamic Cap =====
+local function getGold()
+	local ok, v = pcall(function()
+		return LP:WaitForChild("ReplicatedStats"):WaitForChild("Gold").Value
+	end)
+	return ok and v or 0
+end
+local function getEffectiveCap()
+	local gold = getGold()
+	if gold < GOLD_THRESHOLD then
+		return LOW_GOLD_CAP      -- เงินไม่ถึง 30000 -> cap 500
+	end
+	return pointCapLimit         -- เงินถึงแล้ว -> ใช้ cap เดิม (ปรับได้จาก GUI)
+end
+
 -- ===== Webhook =====
 local function sendWebhook(label)
 	task.spawn(function()
@@ -325,14 +341,15 @@ local function pauseFarm(reason)
 	end)
 end
 
--- Timer watchdog
+-- Timer watchdog (now uses dynamic Gold-based cap)
 task.spawn(function()
 	while true do
 		task.wait(0.3)
 		if loopMain then
 			local pts = getPoints() local timer = getTimerValue()
-			if not pointsCapped and pts >= pointCapLimit then pointsCapped = true end
-			if pointsCapped and timer > 30 and pts < pointCapLimit then pointsCapped = false end
+			local capNow = getEffectiveCap()
+			if not pointsCapped and pts >= capNow then pointsCapped = true end
+			if pointsCapped and timer > 30 and pts < capNow then pointsCapped = false end
 			if timer > 0 and timer <= 2 and not timerTpDone and not roundPaused then
 				timerTpDone = true tpToSafeZone()
 			end
@@ -584,7 +601,7 @@ task.spawn(function()
 	end
 end)
 
--- Status sync
+-- Status sync (now shows effective/dynamic cap when capped)
 task.spawn(function()
 	while gui and gui.Parent do
 		local timer = getTimerValue()
@@ -596,7 +613,7 @@ task.spawn(function()
 		elseif timerTpDone then
 			setStatus("⏱ Safe zone"..info, Color3.fromRGB(255,165,0))
 		elseif pointsCapped then
-			setStatus("🎯 Cap! pts="..getPoints()..info, Color3.fromRGB(255,215,0))
+			setStatus("🎯 Cap! pts="..getPoints().." (cap="..getEffectiveCap()..")"..info, Color3.fromRGB(255,215,0))
 		elseif loopMain then
 			setStatus("🎮 MAIN"..info, Color3.fromRGB(100,200,255))
 		else
