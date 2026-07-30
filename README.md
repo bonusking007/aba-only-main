@@ -86,7 +86,7 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 100000
+local pointCapLimit = 1500
 local GOLD_THRESHOLD = 30000
 local LOW_GOLD_CAP   = 500
 
