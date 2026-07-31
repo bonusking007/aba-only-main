@@ -2,7 +2,7 @@
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main = {"hnbe49wywy37", "uphq17xmfy97", "tdll37dwbm11", "zait72mvvs55", "hgca64abqt56", "shyf02vfkq94", "fvhphqfe5773", "btmtplsc8632", "hhzp76qotz71", "kesq61fpsf00", "zbdu85wvbq31", "mvctwdqr5800"}
+_G.main  = {"hnbe49wywy37", "uphq17xmfy97", "tdll37dwbm11", "zait72mvvs55", "hgca64abqt56", "shyf02vfkq94", "fvhphqfe5773", "btmtplsc8632", "hhzp76qotz71", "kesq61fpsf00", "zbdu85wvbq31", "mvctwdqr5800"}
 -- ==================
 
 setfpscap(20)
@@ -86,7 +86,7 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 1500
+local pointCapLimit = 100000
 local GOLD_THRESHOLD = 30000
 local LOW_GOLD_CAP   = 500
 
@@ -272,6 +272,13 @@ local function sendWebhook(label)
 					if lo then lvl = lo.Text end
 				end
 				pts = tostring(LP.leaderstats.Points.Value)
+			end)
+			-- ถ้า level >= 100 ให้ติดตรา max level ต่อท้าย
+			pcall(function()
+				local lvlNum = tonumber(lvl:match("%d+"))
+				if lvlNum and lvlNum >= 100 then
+					lvl = lvl .. " 🟢"
+				end
 			end)
 			_request({
 				Url = WebhookURL, Method = "POST",
