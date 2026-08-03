@@ -1,4 +1,4 @@
---- V.7.0 Main Only + Gold-based dynamic point cap
+--- V.8.0 Main Only + Gold-based dynamic point cap
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -92,6 +92,10 @@ local LOW_GOLD_CAP     = 200
 local GOLD_THRESHOLD_2 = 60000
 local MID_GOLD_CAP     = 300
 
+-- ===== Gold Progress Tracking =====
+local scriptStartTime = os.time()
+local startGold       = nil   -- captured once real Gold value is available
+
 local WebhookURL = "https://discord.com/api/webhooks/1453628734090514533/ddACObJX5Iuv966TcspBAEmkd5Er2ZfiVCMdoHzyONWLJ1CoqlDaAn3vg9D1GiZkvPoR"
 local _request
 if not pcall(function() _request = request or http_request or http.request end) then
@@ -105,6 +109,18 @@ task.spawn(function()
 		local r = Http:JSONDecode(game:HttpGet(url))
 		if r and r.data and r.data[1] then avatarUrl = r.data[1].imageUrl or "" end
 	end)
+end)
+
+-- capture starting Gold as soon as it's available (retry up to ~50s)
+task.spawn(function()
+	for _ = 1, 50 do
+		local ok, v = pcall(function()
+			return LP:WaitForChild("ReplicatedStats"):WaitForChild("Gold").Value
+		end)
+		if ok and v then startGold = v break end
+		task.wait(1)
+	end
+	if startGold == nil then startGold = 0 end
 end)
 
 -- ===== Helpers =====
@@ -256,11 +272,23 @@ end
 local function getEffectiveCap()
 	local gold = getGold()
 	if gold < GOLD_THRESHOLD then
-		return LOW_GOLD_CAP      -- เงินไม่ถึง 30000 -> cap 500
+		return LOW_GOLD_CAP      -- เงินไม่ถึง 30000 -> cap 200
 	elseif gold < GOLD_THRESHOLD_2 then
-		return MID_GOLD_CAP      -- เงินไม่ถึง 60000 -> cap 750
+		return MID_GOLD_CAP      -- เงินไม่ถึง 60000 -> cap 300
 	end
 	return pointCapLimit         -- เงินเกิน 60000 แล้ว -> ใช้ cap เดิม (ปรับได้จาก GUI)
+end
+
+-- คืนค่าข้อความ progress: "+1,000 Gold ผ่านมาแล้ว 01 ชม 03 นาที"
+local function getGoldProgressText()
+	local current = getGold()
+	local base = startGold or current
+	local gained = current - base
+	local elapsed = os.time() - scriptStartTime
+	local hh = math.floor(elapsed / 3600)
+	local mm = math.floor((elapsed % 3600) / 60)
+	local sign = gained >= 0 and "+" or ""
+	return string.format("%s%d Gold ผ่านมาแล้ว %02d ชม %02d นาที", sign, gained, hh, mm)
 end
 
 -- ===== Webhook =====
@@ -284,6 +312,8 @@ local function sendWebhook(label)
 					lvl = lvl .. " 🟢"
 				end
 			end)
+			local progressText = "N/A"
+			pcall(function() progressText = getGoldProgressText() end)
 			_request({
 				Url = WebhookURL, Method = "POST",
 				Headers = {["Content-Type"] = "application/json"},
@@ -297,6 +327,7 @@ local function sendWebhook(label)
 							{name="💰 Money",  value=money, inline=true},
 							{name="⭐ Level",  value=lvl,   inline=true},
 							{name="🎯 Points", value=pts,   inline=true},
+							{name="📈 Progress", value=progressText, inline=false},
 						},
 						footer    = {text = "WWHub • "..os.date("%d/%m/%Y %H:%M:%S")},
 						timestamp = os.date("!%Y-%m-%dT%H:%M:%SZ")
@@ -612,7 +643,7 @@ task.spawn(function()
 	end
 end)
 
--- Status sync (now shows effective/dynamic cap when capped)
+-- Status sync (now shows effective/dynamic cap when capped + gold progress)
 task.spawn(function()
 	while gui and gui.Parent do
 		local timer = getTimerValue()
