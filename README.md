@@ -86,11 +86,11 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 750
+local pointCapLimit = 400
 local GOLD_THRESHOLD   = 30000
-local LOW_GOLD_CAP     = 300
+local LOW_GOLD_CAP     = 200
 local GOLD_THRESHOLD_2 = 60000
-local MID_GOLD_CAP     = 500
+local MID_GOLD_CAP     = 300
 
 local WebhookURL = "https://discord.com/api/webhooks/1453628734090514533/ddACObJX5Iuv966TcspBAEmkd5Er2ZfiVCMdoHzyONWLJ1CoqlDaAn3vg9D1GiZkvPoR"
 local _request
