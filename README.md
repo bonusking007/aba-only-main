@@ -61,48 +61,7 @@ local IS_MAIN = false
 for _, n in ipairs(_G.main) do if n == myName then IS_MAIN = true end end
 warn("[WWHub] Role: " .. (IS_MAIN and "MAIN" or "UNKNOWN"))
 
--- ถ้าไม่เจอ main คนอื่นใน 7 นาที → hop
-task.spawn(function()
-	if not IS_MAIN then return end
-	task.wait(5)
-
-	local function hasOtherMain()
-		for _, n in ipairs(_G.main) do
-			if n ~= myName and Players:FindFirstChild(n) then return true end
-		end
-		return false
-	end
-
-	-- รอ 7 นาที (42 ครั้ง x 10 วิ)
-	local found = false
-	for _ = 1, 42 do
-		if hasOtherMain() then found = true break end
-		task.wait(10)
-	end
-	if not found then
-		warn("[WWHub] No other main after 7min — hopping...")
-		pcall(function() game:GetService("TeleportService"):TeleportToRandomPlace(game.PlaceId) end)
-		return
-	end
-
-	-- loop check ทุก 2 นาที หลังจากนั้น
-	while true do
-		task.wait(120)
-		if not hasOtherMain() then
-			-- รอ 7 นาทีก่อน hop
-			local back = false
-			for _ = 1, 42 do
-				if hasOtherMain() then back = true break end
-				task.wait(10)
-			end
-			if not back then
-				warn("[WWHub] Main left — hopping...")
-				pcall(function() game:GetService("TeleportService"):TeleportToRandomPlace(game.PlaceId) end)
-				break
-			end
-		end
-	end
-end)
+-- Random server hop disabled
 
 -- ===== Vars =====
 local altCFrame   = CFrame.new(20000, 2000, 20000)
@@ -400,20 +359,14 @@ local function getBlockedMode()
 	end
 	return nil
 end
-local function drainLives()
-	while gui and gui.Parent and loopMain do
-		if not getBlockedMode() then break end
-		local c = getChar() if c then local h = c:FindFirstChildOfClass("Humanoid") if h and h.Health > 0 then h.Health = 0 end end
-		task.wait(2) local nc = getChar() if nc then afterCharLoaded(nc) end task.wait(0.5)
-	end
-end
 local function pauseFarm(reason)
 	if roundPaused then return end
 	roundPaused = true roundPauseReason = reason or "Blocked"
 	pointsCapped = false sendWebhook("Farm Paused — "..roundPauseReason)
 	if roundResetting then return end roundResetting = true
 	task.spawn(function()
-		drainLives() tpToSafeZone()
+		-- Juggernaut/Lives: pause only, no character reset/death
+		tpToSafeZone()
 		local clear = 0
 		while gui and gui.Parent and loopMain and roundPaused do
 			local bm = getBlockedMode()
