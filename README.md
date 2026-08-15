@@ -17,16 +17,36 @@ local LP      = Players.LocalPlayer
 
 
 -- เช็ค vip
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterGui = game:GetService("StarterGui")
 
-local LocalPlayer = Players.LocalPlayer
 local PS = ReplicatedStorage:WaitForChild("PS")
 
 local VIP_CODE = "JblH87"
 local CHECK_INTERVAL = 60
+local JOIN_DELAY = 10
 
-local function IsABAVIP()
+local function Notify(text, duration)
+    task.spawn(function()
+        for _ = 1, 10 do
+            local ok = pcall(function()
+                StarterGui:SetCore("SendNotification", {
+                    Title = "ABA VIP Checker",
+                    Text = text,
+                    Duration = duration or 5
+                })
+            end)
+
+            if ok then
+                return
+            end
+
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function IsABAVIPLite()
     local overrides = ReplicatedStorage:FindFirstChild("VipTeamOverrides")
     if not overrides then
         return false
@@ -37,17 +57,59 @@ local function IsABAVIP()
         return false
     end
 
-    return vipPlayers:FindFirstChild(LocalPlayer.Name) ~= nil
+    -- มือถือ Lite อาจไม่เห็น Folder ของตัวเอง
+    -- แต่ยังเห็นข้อมูลผู้เล่นใน VIP
+    if #vipPlayers:GetChildren() > 0 then
+        return true
+    end
+
+    return false
 end
+
+local checking = false
 
 local function CheckVIP()
-    if not IsABAVIP() then
+    if checking then
+        return
+    end
+
+    checking = true
+
+    -- ให้ Lite มีเวลาโหลดข้อมูล
+    for _ = 1, 20 do
+        if IsABAVIPLite() then
+            Notify("อยู่ใน VIP Server แล้ว", 5)
+            checking = false
+            return
+        end
+
+        task.wait(0.5)
+    end
+
+    Notify("ไม่พบ VIP Server กำลังเข้าใน 10 วินาที...", 10)
+
+    for _ = 1, 20 do
+        task.wait(0.5)
+
+        if IsABAVIPLite() then
+            Notify("ตรวจพบ VIP แล้ว ยกเลิกการ Join", 5)
+            checking = false
+            return
+        end
+    end
+
+    if not IsABAVIPLite() then
+        Notify("กำลังเข้า VIP Server...", 5)
         PS:FireServer("join", VIP_CODE)
     end
+
+    checking = false
 end
 
-CheckVIP()
+-- เช็ครอบแรกทันที
+task.spawn(CheckVIP)
 
+-- เช็คซ้ำทุก 60 วิ
 task.spawn(function()
     while true do
         task.wait(CHECK_INTERVAL)
