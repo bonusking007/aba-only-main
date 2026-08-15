@@ -2,8 +2,10 @@
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"dyfj62krto65", "dupl86dxdx85", "ifbtestban", "cxqg76nvav41", "upwotffs5068", "upvzteid7675", "fvhphqfe5773", "btmtplsc8632", "hhzp76qotz71", "kesq61fpsf00", "zbdu85wvbq31", "mvctwdqr5800"}
+_G.main  = {"Asvin21196mrwf", "Irinor95851irbe", "Valgorn87879vvpx", "ahiorwja9806"}
 -- ==================
+
+
 
 setfpscap(20)
 local Players = game:GetService("Players")
@@ -12,6 +14,47 @@ local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
 local UIS     = game:GetService("UserInputService")
 local LP      = Players.LocalPlayer
+
+
+-- เช็ค vip
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PS = ReplicatedStorage:WaitForChild("PS")
+
+local VIP_CODE = "JblH87"
+local CHECK_INTERVAL = 60
+
+local function IsABAVIP()
+    local overrides = ReplicatedStorage:FindFirstChild("VipTeamOverrides")
+    if not overrides then
+        return false
+    end
+
+    local vipPlayers = overrides:FindFirstChild("Players")
+    if not vipPlayers then
+        return false
+    end
+
+    return vipPlayers:FindFirstChild(LocalPlayer.Name) ~= nil
+end
+
+local function CheckVIP()
+    if not IsABAVIP() then
+        PS:FireServer("join", VIP_CODE)
+    end
+end
+
+CheckVIP()
+
+task.spawn(function()
+    while true do
+        task.wait(CHECK_INTERVAL)
+        CheckVIP()
+    end
+end)
+
 
 local myName = LP.Name
 local IS_MAIN = false
