@@ -2,7 +2,7 @@
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"Seonhenal308", "Haindoha98553", "Babikwyss61634", "Ehsanjaeck810", "Humzaedger76524", "Wafaasip0890"}
+_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Abbedtulin285", "Szedezso2905", "Kaderlugge355"}
 -- ==================
 
 
@@ -48,11 +48,11 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 500
+local pointCapLimit = 300
 local GOLD_THRESHOLD   = 30000
-local LOW_GOLD_CAP     = 200
+local LOW_GOLD_CAP     = 100
 local GOLD_THRESHOLD_2 = 60000
-local MID_GOLD_CAP     = 400
+local MID_GOLD_CAP     = 200
 
 -- ===== Gold Progress Tracking =====
 local scriptStartTime = os.time()
