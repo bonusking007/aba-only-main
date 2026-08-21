@@ -2,7 +2,7 @@
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"Vedroperu4716", "Glahnronak83896", "Chrinmusic79743", "Waidkness6861", "Tropeblynn9736", "Hostyvare68956"}
+_G.main  = {"Seonhenal308", "Haindoha98553", "Babikwyss61634", "Ehsanjaeck810", "Humzaedger76524", "Wafaasip0890"}
 -- ==================
 
 
