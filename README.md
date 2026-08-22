@@ -1,4 +1,4 @@
---- V.8.1 Main Only + No M1 / No Skills + Gold-based dynamic point cap
+--- V.8.2 Main Only + Juggernaut full lives reset + M1 only
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -16,6 +16,46 @@ local UIS     = game:GetService("UserInputService")
 local LP      = Players.LocalPlayer
 
 
+-- เช็ค vip
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PS = ReplicatedStorage:WaitForChild("PS")
+
+local VIP_CODE = "JblH87"
+local CHECK_INTERVAL = 60
+
+local function IsABAVIP()
+    local overrides = ReplicatedStorage:FindFirstChild("VipTeamOverrides")
+    if not overrides then
+        return false
+    end
+
+    local vipPlayers = overrides:FindFirstChild("Players")
+    if not vipPlayers then
+        return false
+    end
+
+    return vipPlayers:FindFirstChild(LocalPlayer.Name) ~= nil
+end
+
+local function CheckVIP()
+    if not IsABAVIP() then
+        PS:FireServer("join", VIP_CODE)
+    end
+end
+
+CheckVIP()
+
+task.spawn(function()
+    while true do
+        task.wait(CHECK_INTERVAL)
+        CheckVIP()
+    end
+end)
+
+
 local myName = LP.Name
 local IS_MAIN = false
 for _, n in ipairs(_G.main) do if n == myName then IS_MAIN = true end end
@@ -30,6 +70,12 @@ local baseName    = "WWHub_BasePlate"
 local tpDist      = 18
 local safeLimit   = 8
 
+local m1Hit = CFrame.new(
+	97.64178466796875, 497.5, -602.8313598632812,
+	0.9989567399024963, 0.006808227859437466, -0.045158419758081436,
+	4.656613428188905e-10, 0.9888255000114441, 0.14907847344875336,
+	0.04566875472664833, -0.14892295002937317, 0.9877936840057373
+)
 
 local loopMain      = false
 local starting      = false
@@ -42,11 +88,11 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 300
+local pointCapLimit = 400
 local GOLD_THRESHOLD   = 30000
-local LOW_GOLD_CAP     = 100
+local LOW_GOLD_CAP     = 200
 local GOLD_THRESHOLD_2 = 60000
-local MID_GOLD_CAP     = 200
+local MID_GOLD_CAP     = 300
 
 -- ===== Gold Progress Tracking =====
 local scriptStartTime = os.time()
@@ -137,7 +183,13 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== Input Helpers =====
+-- ===== M1 Only =====
+local function fireM1()
+	fireInput("M1", {air=false, skeyreal=false, skeydown=true, mousehit=m1Hit, md=Vector3.new(0,0,0)})
+end
+local function pressG()
+	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.G, false, game) task.wait(0.03) VIM:SendKeyEvent(false, Enum.KeyCode.G, false, game) end)
+end
 local function pressK()
 	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.K, false, game) end)
 end
@@ -292,20 +344,117 @@ local function getBlockedMode()
 	end
 	return nil
 end
+
+local function getLivesValue()
+	local pg = LP:FindFirstChild("PlayerGui")
+	if not pg then return nil end
+
+	for _, obj in ipairs(pg:GetDescendants()) do
+		if obj:IsA("IntValue") or obj:IsA("NumberValue") then
+			if (obj.Name or ""):lower() == "lives" then
+				return tonumber(obj.Value)
+			end
+		elseif obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton") then
+			local tx = tostring(obj.Text or "")
+			local n = tx:match("[Ll][Ii][Vv][Ee][Ss]%s*:%s*(%d+)")
+				or tx:match("[Ll][Ii][Vv][Ee][Ss]%s+(%d+)")
+			if n then return tonumber(n) end
+		end
+	end
+	return nil
+end
+
+local function waitForRespawn(oldChar, timeout)
+	local started = os.clock()
+	timeout = timeout or 10
+	while gui and gui.Parent and loopMain and (os.clock() - started) < timeout do
+		local lives = getLivesValue()
+		if lives ~= nil and lives <= 0 then
+			return false
+		end
+
+		local c = getChar()
+		local h = c and c:FindFirstChildOfClass("Humanoid")
+		local hrp = c and c:FindFirstChild("HumanoidRootPart")
+		if c and c ~= oldChar and h and hrp and h.Health > 0 then
+			afterCharLoaded(c)
+			return true
+		end
+		task.wait(0.1)
+	end
+	return false
+end
+
+local function drainLives()
+	local initialLives = getLivesValue()
+	local resetCount = 0
+	local missingSince = nil
+
+	while gui and gui.Parent and loopMain and roundPaused do
+		local lives = getLivesValue()
+		local bm = getBlockedMode()
+
+		if lives ~= nil then
+			missingSince = nil
+			if lives <= 0 then break end
+		elseif not bm then
+			missingSince = missingSince or os.clock()
+
+			-- ระหว่างตาย/เกิดใหม่ UI จะหายชั่วคราว ห้ามหยุด reset ทันที
+			if initialLives then
+				if resetCount >= initialLives and (os.clock() - missingSince) >= 2 then
+					break
+				end
+			elseif (os.clock() - missingSince) >= 5 then
+				break
+			end
+		else
+			missingSince = nil
+		end
+
+		local oldChar = getChar()
+		local hum = oldChar and oldChar:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health > 0 then
+			pcall(function() hum.Health = 0 end)
+			resetCount += 1
+
+			pcall(function()
+				ReplicatedStorage:WaitForChild("Loaded"):FireServer()
+			end)
+
+			waitForRespawn(oldChar, 10)
+		else
+			task.wait(0.25)
+		end
+
+		task.wait(0.5)
+	end
+end
+
 local function pauseFarm(reason)
 	if roundPaused then return end
 	roundPaused = true roundPauseReason = reason or "Blocked"
 	pointsCapped = false sendWebhook("Farm Paused — "..roundPauseReason)
 	if roundResetting then return end roundResetting = true
 	task.spawn(function()
-		-- Juggernaut/Lives: pause only, no character reset/death
+		-- Juggernaut/Lives: reset repeatedly until Lives reaches 0
+		drainLives()
 		tpToSafeZone()
+
 		local clear = 0
 		while gui and gui.Parent and loopMain and roundPaused do
 			local bm = getBlockedMode()
-			if bm then clear=0 tpToSafeZone() task.wait(1)
-			else clear+=1 if clear>=3 then break end task.wait(1) end
+			if bm then
+				clear = 0
+				tpToSafeZone()
+				task.wait(1)
+			else
+				clear += 1
+				if clear >= 3 then break end
+				task.wait(1)
+			end
 		end
+
 		local last = roundPauseReason
 		roundPaused=false roundPauseReason=nil roundResetting=false
 		if gui and gui.Parent and loopMain then sendWebhook("Farm Resumed — "..last) end
@@ -432,10 +581,17 @@ task.spawn(function()
 	end
 end)
 
+-- G spam
+task.spawn(function()
+	while gui and gui.Parent do
+		task.wait(0.05)
+		if loopMain and not roundPaused and not timerTpDone and not starting then pressG() end
+	end
+end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_1" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v7" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -471,7 +627,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.1"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v7"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -611,7 +767,14 @@ task.spawn(function()
 	end
 end)
 
-
+task.spawn(function()
+	while gui.Parent do
+		task.wait(0.12)
+		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
+			fireM1()
+		end
+	end
+end)
 
 task.spawn(function()
 	while gui.Parent do
