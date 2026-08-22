@@ -1,8 +1,8 @@
---- V.8.0 Main Only + Gold-based dynamic point cap
+--- V.8.1 Main Only + No M1 / No Skills + Gold-based dynamic point cap
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Abbedtulin285", "Szedezso2905", "Kaderlugge355"}
+_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Aspenbaab40606", "Zerrtyran1579", "Rivyebbs9019"}
 -- ==================
 
 
@@ -30,12 +30,6 @@ local baseName    = "WWHub_BasePlate"
 local tpDist      = 18
 local safeLimit   = 8
 
-local m1Hit = CFrame.new(
-	97.64178466796875, 497.5, -602.8313598632812,
-	0.9989567399024963, 0.006808227859437466, -0.045158419758081436,
-	4.656613428188905e-10, 0.9888255000114441, 0.14907847344875336,
-	0.04566875472664833, -0.14892295002937317, 0.9877936840057373
-)
 
 local loopMain      = false
 local starting      = false
@@ -143,28 +137,7 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== Skills =====
-local function fireM1()
-	fireInput("M1", {air=false, skeyreal=false, skeydown=true, mousehit=m1Hit, md=Vector3.new(0,0,0)})
-end
-local function pressKey(key)
-	pcall(function() VIM:SendKeyEvent(true, key, false, game) task.wait(0.05) VIM:SendKeyEvent(false, key, false, game) end)
-end
-local function fireSkills()
-	local inp = getInput() if not inp then return end
-	pcall(function() inp:FireServer("UseMove",{air=false,running=false,neutral=true,range="1",ToolName="Getsuga Tensho",mousehit=m1Hit,camdir=vector.create(-0.83,-0.065,-0.55),campos=vector.create(3083.8,579.3,473.5)}) end)
-	pressKey(Enum.KeyCode.One) task.wait(0.15)
-	pcall(function() inp:FireServer("UseMove",{air=false,running=false,neutral=true,range="2",ToolName="Getsuga Slash",mousehit=m1Hit,camdir=vector.create(-0.82,-0.033,-0.57),campos=vector.create(3083.6,578.9,473.7)}) end)
-	pressKey(Enum.KeyCode.Two) task.wait(0.15)
-	pcall(function() inp:FireServer("UseMove",{air=false,running=false,neutral=true,range="3",ToolName="Multi-Cut",mousehit=m1Hit,camdir=vector.create(-0.91,-0.095,-0.39),campos=vector.create(3047.1,579.7,438.5)}) end)
-	pressKey(Enum.KeyCode.Three) task.wait(0.15)
-	pcall(function() inp:FireServer("UseMove",{air=false,running=false,neutral=true,range="4",ToolName="Lunge",mousehit=m1Hit,camdir=vector.create(-0.75,-0.018,-0.65),campos=vector.create(3047.1,578.7,444.8)}) end)
-	pressKey(Enum.KeyCode.Four) task.wait(0.15)
-	pcall(function() inp:FireServer("UseMode") end)
-end
-local function pressG()
-	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.G, false, game) task.wait(0.03) VIM:SendKeyEvent(false, Enum.KeyCode.G, false, game) end)
-end
+-- ===== Input Helpers =====
 local function pressK()
 	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.K, false, game) end)
 end
@@ -459,17 +432,10 @@ task.spawn(function()
 	end
 end)
 
--- G spam
-task.spawn(function()
-	while gui and gui.Parent do
-		task.wait(0.05)
-		if loopMain and not roundPaused and not timerTpDone and not starting then pressG() end
-	end
-end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v7" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_1" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -505,7 +471,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v7"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.1"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -645,23 +611,7 @@ task.spawn(function()
 	end
 end)
 
-task.spawn(function()
-	while gui.Parent do
-		task.wait(0.12)
-		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
-			fireM1()
-		end
-	end
-end)
 
-task.spawn(function()
-	while gui.Parent do
-		task.wait(0.8)
-		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
-			fireSkills()
-		end
-	end
-end)
 
 task.spawn(function()
 	while gui.Parent do
