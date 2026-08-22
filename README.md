@@ -88,11 +88,11 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 400
+local pointCapLimit = 200
 local GOLD_THRESHOLD   = 30000
-local LOW_GOLD_CAP     = 200
+local LOW_GOLD_CAP     = 100
 local GOLD_THRESHOLD_2 = 60000
-local MID_GOLD_CAP     = 300
+local MID_GOLD_CAP     = 150
 
 -- ===== Gold Progress Tracking =====
 local scriptStartTime = os.time()
