@@ -1,8 +1,8 @@
---- V.8.2 Main Only + Juggernaut full lives reset + M1 only
+--- V.8.3 Main Only + Juggernaut full lives reset + Human M1
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Aspenbaab40606", "Zerrtyran1579", "Rivyebbs9019"}
+_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Maheutjoa982", "Zwecktiel2553", "Rubeoszot414"}
 -- ==================
 
 
@@ -14,6 +14,46 @@ local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
 local UIS     = game:GetService("UserInputService")
 local LP      = Players.LocalPlayer
+
+
+-- เช็ค vip
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local LocalPlayer = Players.LocalPlayer
+local PS = ReplicatedStorage:WaitForChild("PS")
+
+local VIP_CODE = "JblH87"
+local CHECK_INTERVAL = 60
+
+local function IsABAVIP()
+    local overrides = ReplicatedStorage:FindFirstChild("VipTeamOverrides")
+    if not overrides then
+        return false
+    end
+
+    local vipPlayers = overrides:FindFirstChild("Players")
+    if not vipPlayers then
+        return false
+    end
+
+    return vipPlayers:FindFirstChild(LocalPlayer.Name) ~= nil
+end
+
+local function CheckVIP()
+    if not IsABAVIP() then
+        PS:FireServer("join", VIP_CODE)
+    end
+end
+
+CheckVIP()
+
+task.spawn(function()
+    while true do
+        task.wait(CHECK_INTERVAL)
+        CheckVIP()
+    end
+end)
 
 
 local myName = LP.Name
@@ -48,11 +88,11 @@ local handledChar   = nil
 local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
-local pointCapLimit = 200
+local pointCapLimit = 400
 local GOLD_THRESHOLD   = 30000
-local LOW_GOLD_CAP     = 100
+local LOW_GOLD_CAP     = 200
 local GOLD_THRESHOLD_2 = 60000
-local MID_GOLD_CAP     = 150
+local MID_GOLD_CAP     = 300
 
 -- ===== Gold Progress Tracking =====
 local scriptStartTime = os.time()
@@ -143,9 +183,34 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== M1 Only =====
-local function fireM1()
-	fireInput("M1", {air=false, skeyreal=false, skeydown=true, mousehit=m1Hit, md=Vector3.new(0,0,0)})
+-- ===== Human-like M1 (real mouse input, no direct M1 remote) =====
+local humanClickCount = 0
+local nextLongPauseAt = math.random(8, 15)
+
+local function humanM1()
+	local pos = UIS:GetMouseLocation()
+	local holdTime = math.random(35, 85) / 1000
+
+	pcall(function()
+		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+	end)
+	task.wait(holdTime)
+	pcall(function()
+		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
+	end)
+end
+
+local function getHumanM1Delay()
+	humanClickCount += 1
+	local delayTime = math.random(115, 220) / 1000
+
+	if humanClickCount >= nextLongPauseAt then
+		humanClickCount = 0
+		nextLongPauseAt = math.random(8, 15)
+		delayTime += math.random(120, 380) / 1000
+	end
+
+	return delayTime
 end
 local function pressG()
 	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.G, false, game) task.wait(0.03) VIM:SendKeyEvent(false, Enum.KeyCode.G, false, game) end)
@@ -587,7 +652,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v7"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.3"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -729,9 +794,21 @@ end)
 
 task.spawn(function()
 	while gui.Parent do
-		task.wait(0.12)
-		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
-			fireM1()
+		if loopMain and not starting and not selectingTeam and not roundPaused and not timerTpDone then
+			local pts = getPoints()
+			local capNow = getEffectiveCap()
+
+			if pts >= capNow then
+				pointsCapped = true
+				task.wait(0.2)
+			elseif not pointsCapped then
+				humanM1()
+				task.wait(getHumanM1Delay())
+			else
+				task.wait(0.15)
+			end
+		else
+			task.wait(math.random(80, 150) / 1000)
 		end
 	end
 end)
