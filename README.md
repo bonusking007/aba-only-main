@@ -1,4 +1,4 @@
---- V.8.3 Main Only + Juggernaut full lives reset + Human M1
+--- V.8.4 Main Only + Juggernaut/Lives reset + Human Remote M1 + No VIP Check
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -9,52 +9,12 @@ _G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Maheutjoa982", 
 
 setfpscap(20)
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VIM     = game:GetService("VirtualInputManager")
 local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
 local UIS     = game:GetService("UserInputService")
 local LP      = Players.LocalPlayer
-
-
--- เช็ค vip
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local LocalPlayer = Players.LocalPlayer
-local PS = ReplicatedStorage:WaitForChild("PS")
-
-local VIP_CODE = "JblH87"
-local CHECK_INTERVAL = 60
-
-local function IsABAVIP()
-    local overrides = ReplicatedStorage:FindFirstChild("VipTeamOverrides")
-    if not overrides then
-        return false
-    end
-
-    local vipPlayers = overrides:FindFirstChild("Players")
-    if not vipPlayers then
-        return false
-    end
-
-    return vipPlayers:FindFirstChild(LocalPlayer.Name) ~= nil
-end
-
-local function CheckVIP()
-    if not IsABAVIP() then
-        PS:FireServer("join", VIP_CODE)
-    end
-end
-
-CheckVIP()
-
-task.spawn(function()
-    while true do
-        task.wait(CHECK_INTERVAL)
-        CheckVIP()
-    end
-end)
-
 
 local myName = LP.Name
 local IS_MAIN = false
@@ -183,31 +143,49 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== Human-like M1 (real mouse input, no direct M1 remote) =====
-local humanClickCount = 0
-local nextLongPauseAt = math.random(8, 15)
+-- ===== Human-like M1 cadence via game Input remote =====
+local humanM1Count = 0
+local comboStep = 0
+local nextHesitateAt = math.random(10, 18)
 
 local function humanM1()
-	local pos = UIS:GetMouseLocation()
-	local holdTime = math.random(35, 85) / 1000
+	local inp = getInput()
+	if not inp then return false end
 
-	pcall(function()
-		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, true, game, 0)
+	local payload = {
+		air = false,
+		skeyreal = false,
+		skeydown = true,
+		mousehit = m1Hit,
+		md = Vector3.new(0,0,0)
+	}
+
+	local ok = pcall(function()
+		inp:FireServer("M1", payload)
 	end)
-	task.wait(holdTime)
-	pcall(function()
-		VIM:SendMouseButtonEvent(pos.X, pos.Y, 0, false, game, 0)
-	end)
+
+	if ok then
+		humanM1Count += 1
+		comboStep += 1
+		if comboStep >= 4 then comboStep = 0 end
+	end
+
+	return ok
 end
 
 local function getHumanM1Delay()
-	humanClickCount += 1
-	local delayTime = math.random(115, 220) / 1000
+	local delayTime
 
-	if humanClickCount >= nextLongPauseAt then
-		humanClickCount = 0
-		nextLongPauseAt = math.random(8, 15)
-		delayTime += math.random(120, 380) / 1000
+	if comboStep == 0 then
+		delayTime = math.random(430, 720) / 1000
+	else
+		delayTime = math.random(175, 285) / 1000
+	end
+
+	if humanM1Count >= nextHesitateAt then
+		humanM1Count = 0
+		nextHesitateAt = math.random(10, 18)
+		delayTime += math.random(140, 420) / 1000
 	end
 
 	return delayTime
@@ -652,7 +630,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.3"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.4"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -802,8 +780,15 @@ task.spawn(function()
 				pointsCapped = true
 				task.wait(0.2)
 			elseif not pointsCapped then
-				humanM1()
-				task.wait(getHumanM1Delay())
+				local latestPts = getPoints()
+				local latestCap = getEffectiveCap()
+				if latestPts >= latestCap then
+					pointsCapped = true
+					task.wait(0.2)
+				else
+					humanM1()
+					task.wait(getHumanM1Delay())
+				end
 			else
 				task.wait(0.15)
 			end
