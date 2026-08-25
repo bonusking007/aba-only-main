@@ -1,8 +1,9 @@
---- V.8.4 Main Only + Juggernaut/Lives reset + Human Remote M1 + No VIP Check
+--- V.8.5 MAIN/AFK Positions + Skills 1-4/Mode + No M1 + Juggernaut/Lives reset + No VIP Check
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main  = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Maheutjoa982", "Tylarlucas836", "Baseledet5357"}
+_G.main = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Bainshemer4373", "Ifillnarro4902"}
+_G.afk  = {"Charitsing50943"}
 -- ==================
 
 
@@ -18,19 +19,32 @@ local LP      = Players.LocalPlayer
 
 local myName = LP.Name
 local IS_MAIN = false
-for _, n in ipairs(_G.main) do if n == myName then IS_MAIN = true end end
-warn("[WWHub] Role: " .. (IS_MAIN and "MAIN" or "UNKNOWN"))
+local IS_AFK = false
+
+for _, n in ipairs(_G.main) do
+	if n == myName then IS_MAIN = true break end
+end
+
+for _, n in ipairs(_G.afk) do
+	if n == myName then IS_AFK = true break end
+end
+
+local IS_FARMER = IS_MAIN or IS_AFK
+local FARM_ROLE = IS_AFK and "AFK" or (IS_MAIN and "MAIN" or "UNKNOWN")
+warn("[WWHub] Role: " .. FARM_ROLE)
 
 -- Random server hop disabled
 
 -- ===== Vars =====
-local altCFrame   = CFrame.new(20000, 2000, 20000)
+local mainFarmCFrame = CFrame.new(200, 2000, 200)
+local afkFarmCFrame  = CFrame.new(20000, 2000, 20000)
+local altCFrame      = IS_AFK and afkFarmCFrame or mainFarmCFrame
 local pauseCFrame = CFrame.new(156, 1, -43)
 local baseName    = "WWHub_BasePlate"
 local tpDist      = 18
 local safeLimit   = 8
 
-local m1Hit = CFrame.new(
+local skillHit = CFrame.new(
 	97.64178466796875, 497.5, -602.8313598632812,
 	0.9989567399024963, 0.006808227859437466, -0.045158419758081436,
 	4.656613428188905e-10, 0.9888255000114441, 0.14907847344875336,
@@ -121,7 +135,8 @@ local function tpToCF(cf)
 	return true
 end
 local function getMainCF()
-	local p = altCFrame.Position return CFrame.lookAt(p + Vector3.new(0,0,-1), p)
+	local p = altCFrame.Position
+	return CFrame.lookAt(p, p + Vector3.new(0,0,1))
 end
 local function tpToSafeZone()
 	local cf = pauseCFrame
@@ -143,53 +158,68 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== Human-like M1 cadence via game Input remote =====
-local humanM1Count = 0
-local comboStep = 0
-local nextHesitateAt = math.random(10, 18)
-
-local function humanM1()
-	local inp = getInput()
-	if not inp then return false end
-
-	local payload = {
-		air = false,
-		skeyreal = false,
-		skeydown = true,
-		mousehit = m1Hit,
-		md = Vector3.new(0,0,0)
-	}
-
-	local ok = pcall(function()
-		inp:FireServer("M1", payload)
+-- ===== Skills 1-4 + Mode =====
+local function pressKey(key)
+	pcall(function()
+		VIM:SendKeyEvent(true, key, false, game)
+		task.wait(0.05)
+		VIM:SendKeyEvent(false, key, false, game)
 	end)
-
-	if ok then
-		humanM1Count += 1
-		comboStep += 1
-		if comboStep >= 4 then comboStep = 0 end
-	end
-
-	return ok
 end
 
-local function getHumanM1Delay()
-	local delayTime
+local function fireSkills()
+	local inp = getInput()
+	if not inp then return end
 
-	if comboStep == 0 then
-		delayTime = math.random(430, 720) / 1000
-	else
-		delayTime = math.random(175, 285) / 1000
-	end
+	pcall(function()
+		inp:FireServer("UseMove", {
+			air=false, running=false, neutral=true, range="1",
+			ToolName="Getsuga Tensho", mousehit=skillHit,
+			camdir=vector.create(-0.83,-0.065,-0.55),
+			campos=vector.create(3083.8,579.3,473.5)
+		})
+	end)
+	pressKey(Enum.KeyCode.One)
+	task.wait(0.15)
 
-	if humanM1Count >= nextHesitateAt then
-		humanM1Count = 0
-		nextHesitateAt = math.random(10, 18)
-		delayTime += math.random(140, 420) / 1000
-	end
+	pcall(function()
+		inp:FireServer("UseMove", {
+			air=false, running=false, neutral=true, range="2",
+			ToolName="Getsuga Slash", mousehit=skillHit,
+			camdir=vector.create(-0.82,-0.033,-0.57),
+			campos=vector.create(3083.6,578.9,473.7)
+		})
+	end)
+	pressKey(Enum.KeyCode.Two)
+	task.wait(0.15)
 
-	return delayTime
+	pcall(function()
+		inp:FireServer("UseMove", {
+			air=false, running=false, neutral=true, range="3",
+			ToolName="Multi-Cut", mousehit=skillHit,
+			camdir=vector.create(-0.91,-0.095,-0.39),
+			campos=vector.create(3047.1,579.7,438.5)
+		})
+	end)
+	pressKey(Enum.KeyCode.Three)
+	task.wait(0.15)
+
+	pcall(function()
+		inp:FireServer("UseMove", {
+			air=false, running=false, neutral=true, range="4",
+			ToolName="Lunge", mousehit=skillHit,
+			camdir=vector.create(-0.75,-0.018,-0.65),
+			campos=vector.create(3047.1,578.7,444.8)
+		})
+	end)
+	pressKey(Enum.KeyCode.Four)
+	task.wait(0.15)
+
+	pcall(function()
+		inp:FireServer("UseMode")
+	end)
 end
+
 local function pressG()
 	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.G, false, game) task.wait(0.03) VIM:SendKeyEvent(false, Enum.KeyCode.G, false, game) end)
 end
@@ -495,14 +525,17 @@ local function startFarm()
 	task.wait(2.5)
 	roundPaused=false roundPauseReason=nil roundResetting=false timerTpDone=false pointsCapped=false
 	loopMain = true
-	sendWebhook("Main Farm Started")
+	sendWebhook(FARM_ROLE.." Farm Started")
 	starting = false
 end
 
 -- Team selection — สุ่มสีให้ main แต่ละคนอยู่คนละทีม
 -- ดึง index ของตัวเองใน _G.main เพื่อเลือก pad ต่างกัน
 local myMainIndex = 0
-for i, n in ipairs(_G.main) do if n == myName then myMainIndex = i break end end
+local roleList = IS_AFK and _G.afk or _G.main
+for i, n in ipairs(roleList) do
+	if n == myName then myMainIndex = i break end
+end
 
 local allTeamPads = {"Red Team", "Blue Team", "Green Team", "Yellow Team"}
 
@@ -594,7 +627,7 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v7" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_5" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -630,7 +663,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.4"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.5"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -718,7 +751,7 @@ destroyBtn.MouseButton1Click:Connect(function() loopMain = false gui:Destroy() e
 -- Auto-start
 task.spawn(function()
 	task.wait(0.5)
-	if IS_MAIN then
+	if IS_FARMER then
 		task.spawn(startFarm)
 		startBtn.BackgroundColor3 = Color3.fromRGB(40,190,100) startBtn.Text = "⏸ RUNNING"
 	end
@@ -738,7 +771,7 @@ task.spawn(function()
 		elseif pointsCapped then
 			setStatus("🎯 Cap! pts="..getPoints().." (cap="..getEffectiveCap()..")"..info, Color3.fromRGB(255,215,0))
 		elseif loopMain then
-			setStatus("🎮 MAIN"..info, Color3.fromRGB(100,200,255))
+			setStatus("🎮 "..FARM_ROLE..info, Color3.fromRGB(100,200,255))
 		else
 			setStatus("Idle")
 		end
@@ -772,28 +805,9 @@ end)
 
 task.spawn(function()
 	while gui.Parent do
-		if loopMain and not starting and not selectingTeam and not roundPaused and not timerTpDone then
-			local pts = getPoints()
-			local capNow = getEffectiveCap()
-
-			if pts >= capNow then
-				pointsCapped = true
-				task.wait(0.2)
-			elseif not pointsCapped then
-				local latestPts = getPoints()
-				local latestCap = getEffectiveCap()
-				if latestPts >= latestCap then
-					pointsCapped = true
-					task.wait(0.2)
-				else
-					humanM1()
-					task.wait(getHumanM1Delay())
-				end
-			else
-				task.wait(0.15)
-			end
-		else
-			task.wait(math.random(80, 150) / 1000)
+		task.wait(0.8)
+		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
+			fireSkills()
 		end
 	end
 end)
@@ -808,7 +822,7 @@ task.spawn(function()
 end)
 
 task.spawn(function()
-	while gui.Parent do task.wait(30) if loopMain and not roundPaused then sendWebhook("Main Farm Report") end end
+	while gui.Parent do task.wait(30) if loopMain and not roundPaused then sendWebhook(FARM_ROLE.." Farm Report") end end
 end)
 
 task.spawn(function()
