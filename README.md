@@ -1,4 +1,4 @@
---- V.8.6 MAIN Bakugou Q Farm + AFK Pair Position + No M1/G/Old Skills + Juggernaut/Lives reset + No VIP Check
+--- V.8.6.2 MAIN Bakugou Q Farm + Updated Lists/Caps + Fixed PointCap Round Reset
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -8,7 +8,7 @@ _G.afk  = {"Krobsans906", "Sodermaae3535"}
 
 
 
-setfpscap(20)
+setfpscap(30)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VUser   = game:GetService("VirtualUser")
@@ -450,8 +450,13 @@ task.spawn(function()
 		if loopMain then
 			local pts = getPoints() local timer = getTimerValue()
 			local capNow = getEffectiveCap()
-			if not pointsCapped and pts >= capNow then pointsCapped = true end
-			if pointsCapped and timer > 30 and pts < capNow then pointsCapped = false end
+
+			-- Keep cap state synced with current round points.
+			if pts >= capNow then
+				pointsCapped = true
+			elseif pointsCapped then
+				pointsCapped = false
+			end
 			if timer > 0 and timer <= 2 and not timerTpDone and not roundPaused then
 				timerTpDone = true tpToSafeZone()
 			end
@@ -565,7 +570,7 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_6_2" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -601,7 +606,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.2"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
