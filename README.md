@@ -1,9 +1,9 @@
---- V.8.5 MAIN/AFK Positions + Skills 1-4/Mode + No M1 + Juggernaut/Lives reset + No VIP Check
+--- V.8.6 MAIN Bakugou Q Farm + AFK Pair Position + No M1/G/Old Skills + Juggernaut/Lives reset + No VIP Check
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
-_G.main = {"Bunowaiau359"}
-_G.afk  = {"Sodermaae3535", "Krobsans906"}
+_G.main = {"Pevyacy37606", "Athadees29181", "Womeruzayr27750", "Maheutjoa982", "Tylarlucas836", "Baseledet5357"}
+_G.afk  = {}
 -- ==================
 
 
@@ -11,7 +11,6 @@ _G.afk  = {"Sodermaae3535", "Krobsans906"}
 setfpscap(20)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local VIM     = game:GetService("VirtualInputManager")
 local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
 local UIS     = game:GetService("UserInputService")
@@ -36,20 +35,26 @@ warn("[WWHub] Role: " .. FARM_ROLE)
 -- Random server hop disabled
 
 -- ===== Vars =====
-local mainFarmCFrame = CFrame.new(200, 2000, 200)
-local afkFarmCFrame  = CFrame.new(20000, 2000, 20000)
-local altCFrame      = IS_AFK and afkFarmCFrame or mainFarmCFrame
+local FARM_BASE = Vector3.new(200, 2000, 200)
+local FARM_PAIR_SPACING = 6
+local FARM_ALT_OFFSET = 2
+
+local function getRoleIndex(list)
+	for i, n in ipairs(list) do
+		if n == myName then return i end
+	end
+	return 1
+end
+
+local farmIndex = IS_AFK and getRoleIndex(_G.afk) or getRoleIndex(_G.main)
+local pairX = (farmIndex - 1) * FARM_PAIR_SPACING
+local farmPos = FARM_BASE + Vector3.new(pairX, 0, IS_AFK and FARM_ALT_OFFSET or 0)
+local altCFrame = CFrame.new(farmPos)
 local pauseCFrame = CFrame.new(156, 1, -43)
 local baseName    = "WWHub_BasePlate"
 local tpDist      = 18
 local safeLimit   = 8
 
-local skillHit = CFrame.new(
-	97.64178466796875, 497.5, -602.8313598632812,
-	0.9989567399024963, 0.006808227859437466, -0.045158419758081436,
-	4.656613428188905e-10, 0.9888255000114441, 0.14907847344875336,
-	0.04566875472664833, -0.14892295002937317, 0.9877936840057373
-)
 
 local loopMain      = false
 local starting      = false
@@ -59,7 +64,6 @@ local roundPaused   = false
 local roundPauseReason = nil
 local roundResetting   = false
 local handledChar   = nil
-local pressedKChar  = nil
 local timerTpDone   = false
 local gui           = nil
 local pointCapLimit = 100
@@ -158,75 +162,25 @@ local function tpToSafeZone()
 	end)
 end
 
--- ===== Skills 1-4 + Mode =====
-local function pressKey(key)
-	pcall(function()
-		VIM:SendKeyEvent(true, key, false, game)
-		task.wait(0.05)
-		VIM:SendKeyEvent(false, key, false, game)
-	end)
-end
-
-local function fireSkills()
+-- ===== Bakugou Q Remote =====
+local function fireBakugouQ()
+	if not IS_MAIN then return end
 	local inp = getInput()
-	if not inp then return end
-
+	local hrp = getHRP()
+	if not inp or not hrp then return end
 	pcall(function()
-		inp:FireServer("UseMove", {
-			air=false, running=false, neutral=true, range="1",
-			ToolName="Getsuga Tensho", mousehit=skillHit,
-			camdir=vector.create(-0.83,-0.065,-0.55),
-			campos=vector.create(3083.8,579.3,473.5)
+		inp:FireServer("dodge", {
+			TagName = "ExplodDodge",
+			explod = Enum.KeyCode.W,
+			ServerSwoosh = false,
+			pos = hrp.CFrame
 		})
-	end)
-	pressKey(Enum.KeyCode.One)
-	task.wait(0.15)
-
-	pcall(function()
-		inp:FireServer("UseMove", {
-			air=false, running=false, neutral=true, range="2",
-			ToolName="Getsuga Slash", mousehit=skillHit,
-			camdir=vector.create(-0.82,-0.033,-0.57),
-			campos=vector.create(3083.6,578.9,473.7)
-		})
-	end)
-	pressKey(Enum.KeyCode.Two)
-	task.wait(0.15)
-
-	pcall(function()
-		inp:FireServer("UseMove", {
-			air=false, running=false, neutral=true, range="3",
-			ToolName="Multi-Cut", mousehit=skillHit,
-			camdir=vector.create(-0.91,-0.095,-0.39),
-			campos=vector.create(3047.1,579.7,438.5)
-		})
-	end)
-	pressKey(Enum.KeyCode.Three)
-	task.wait(0.15)
-
-	pcall(function()
-		inp:FireServer("UseMove", {
-			air=false, running=false, neutral=true, range="4",
-			ToolName="Lunge", mousehit=skillHit,
-			camdir=vector.create(-0.75,-0.018,-0.65),
-			campos=vector.create(3047.1,578.7,444.8)
-		})
-	end)
-	pressKey(Enum.KeyCode.Four)
-	task.wait(0.15)
-
-	pcall(function()
-		inp:FireServer("UseMode")
 	end)
 end
 
-local function pressG()
-	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.G, false, game) task.wait(0.03) VIM:SendKeyEvent(false, Enum.KeyCode.G, false, game) end)
+local function forceFieldOff()
+	fireInput("ForceFieldOff")
 end
-local function pressK()
-	pcall(function() VIM:SendKeyEvent(true, Enum.KeyCode.K, false, game) end)
-end
-local function forceFieldOff() fireInput("ForceFieldOff") end
 
 -- Anti-AFK
 pcall(function()
@@ -247,7 +201,7 @@ local function fireRespawnDone()
 end
 local function afterCharLoaded(char)
 	if not char or handledChar == char then return end
-	handledChar = char pressedKChar = nil
+	handledChar = char
 	char:WaitForChild("HumanoidRootPart", 10) char:WaitForChild("Humanoid", 10)
 	task.wait(1) fireRespawnDone() task.wait(0.2) forceFieldOff()
 end
@@ -256,11 +210,6 @@ local function resetChar()
 	if c then local h = c:FindFirstChildOfClass("Humanoid") if h then h.Health = 0 end end
 	pcall(function() game:GetService("ReplicatedStorage"):WaitForChild("Loaded"):FireServer() end)
 	task.wait(1) local nc = getChar() if nc then afterCharLoaded(nc) end
-end
-local function pressKAfterTP()
-	local c = LP.Character
-	if not c or pressedKChar == c or not isNearCF(altCFrame, tpDist) then return end
-	pressedKChar = c task.wait(0.35) if isNearCF(altCFrame, tpDist) then pressK() end
 end
 
 -- ===== Stats =====
@@ -519,9 +468,10 @@ end)
 -- startFarm
 local function startFarm()
 	if starting then return end starting = true loopMain = false makeBase()
-	fireInput("CharacterButton","Ichigo") task.wait(0.2) fireInput("ClickPlay")
+	local farmCharacter = IS_MAIN and "Bakugou" or "Ichigo"
+	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
 	task.wait(2.5) resetChar() task.wait(2.5)
-	fireInput("CharacterButton","Ichigo") task.wait(0.2) fireInput("ClickPlay")
+	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
 	task.wait(2.5)
 	roundPaused=false roundPauseReason=nil roundResetting=false timerTpDone=false pointsCapped=false
 	loopMain = true
@@ -529,27 +479,22 @@ local function startFarm()
 	starting = false
 end
 
--- Team selection — สุ่มสีให้ main แต่ละคนอยู่คนละทีม
--- ดึง index ของตัวเองใน _G.main เพื่อเลือก pad ต่างกัน
-local myMainIndex = 0
-local roleList = IS_AFK and _G.afk or _G.main
-for i, n in ipairs(roleList) do
-	if n == myName then myMainIndex = i break end
-end
-
+-- Team selection — MAIN and AFK use opposing teams
 local allTeamPads = {"Red Team", "Blue Team", "Green Team", "Yellow Team"}
 
 local function getMyTeamPad()
-	-- ถ้าเป็น FFA ไม่มี pad
 	if not workspace:FindFirstChild("Red Team") and not workspace:FindFirstChild("Blue Team") then return nil end
-	-- หา pad ที่มีอยู่จริงในเกม
 	local availablePads = {}
 	for _, name in ipairs(allTeamPads) do
 		if workspace:FindFirstChild(name) then table.insert(availablePads, name) end
 	end
 	if #availablePads == 0 then return nil end
-	-- เลือก pad ตาม index ของตัวเองใน main list (กระจายทีม)
-	local padIndex = ((myMainIndex - 1) % #availablePads) + 1
+	local padIndex
+	if IS_AFK and #availablePads >= 2 then
+		padIndex = 2
+	else
+		padIndex = 1
+	end
 	return workspace:FindFirstChild(availablePads[padIndex])
 end
 
@@ -617,17 +562,10 @@ task.spawn(function()
 	end
 end)
 
--- G spam
-task.spawn(function()
-	while gui and gui.Parent do
-		task.wait(0.05)
-		if loopMain and not roundPaused and not timerTpDone and not starting then pressG() end
-	end
-end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_5" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_6" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -663,7 +601,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.5"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -786,7 +724,6 @@ task.spawn(function()
 		task.wait(0.25)
 		local c = LP.Character
 		if c and c.Parent and c ~= handledChar then afterCharLoaded(c) end
-		if not roundPaused and not timerTpDone then pressKAfterTP() end
 	end
 end)
 
@@ -805,9 +742,9 @@ end)
 
 task.spawn(function()
 	while gui.Parent do
-		task.wait(0.8)
-		if loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
-			fireSkills()
+		task.wait(0.2)
+		if IS_MAIN and loopMain and not starting and not selectingTeam and not roundPaused and not pointsCapped and not timerTpDone then
+			fireBakugouQ()
 		end
 	end
 end)
