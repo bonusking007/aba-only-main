@@ -3,7 +3,7 @@ repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
 _G.main = {"Bunowaiau359"}
-_G.afk  = {"sazr80rlcw11", "Krobsans906"}
+_G.afk  = {"Sodermaae3535", "Krobsans906"}
 -- ==================
 
 
