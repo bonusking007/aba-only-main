@@ -1,4 +1,4 @@
---- V.8.6.2 MAIN Bakugou Q Farm + Updated Lists/Caps + Fixed PointCap Round Reset
+--- V.8.6.4 MAIN Bakugou Auto Buy + Smart Private Cap + Fixed Cap Buttons
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -8,7 +8,7 @@ _G.afk  = {"Krobsans906", "Sodermaae3535"}
 
 
 
-setfpscap(30)
+setfpscap(20)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VUser   = game:GetService("VirtualUser")
@@ -194,6 +194,24 @@ pcall(function()
 	end)
 end)
 
+-- ===== Bakugou Auto Buy =====
+local bakugouBuyTried = false
+
+local function buyBakugou()
+	if not IS_MAIN or bakugouBuyTried then return end
+	bakugouBuyTried = true
+	pcall(function()
+		local backpack = LP:WaitForChild("Backpack", 10)
+		local serverTraits = backpack and backpack:WaitForChild("ServerTraits", 10)
+		local choose = serverTraits and serverTraits:WaitForChild("Choose", 10)
+		if not choose then return end
+		choose:FireServer("Bakugou")
+		task.wait(0.15)
+		choose:FireServer("PLAY")
+		task.wait(0.5)
+	end)
+end
+
 -- ===== Character =====
 local function fireRespawnDone()
 	local r = LP:WaitForChild("PlayerGui"):FindFirstChild("Respawning")
@@ -231,6 +249,26 @@ local function getLevel()
 	return ok and v or "?"
 end
 
+-- ===== Point Cap Visibility Safety =====
+local function isFarmAccount(name)
+	for _, n in ipairs(_G.main) do
+		if n == name then return true end
+	end
+	for _, n in ipairs(_G.afk) do
+		if n == name then return true end
+	end
+	return false
+end
+
+local function hasOutsider()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if not isFarmAccount(plr.Name) then
+			return true
+		end
+	end
+	return false
+end
+
 -- ===== Gold / Dynamic Cap =====
 local function getGold()
 	local ok, v = pcall(function()
@@ -241,11 +279,25 @@ end
 local function getEffectiveCap()
 	local gold = getGold()
 	if gold < GOLD_THRESHOLD then
-		return LOW_GOLD_CAP      -- เงินไม่ถึง 30000 -> cap 200
+		return LOW_GOLD_CAP
 	elseif gold < GOLD_THRESHOLD_2 then
-		return MID_GOLD_CAP      -- เงินไม่ถึง 60000 -> cap 300
+		return MID_GOLD_CAP
 	end
-	return pointCapLimit         -- เงินเกิน 60000 แล้ว -> ใช้ cap เดิม (ปรับได้จาก GUI)
+	return pointCapLimit
+end
+
+local function adjustEffectiveCap(delta)
+	local gold = getGold()
+	if gold < GOLD_THRESHOLD then
+		LOW_GOLD_CAP = math.max(100, LOW_GOLD_CAP + delta)
+	elseif gold < GOLD_THRESHOLD_2 then
+		MID_GOLD_CAP = math.max(100, MID_GOLD_CAP + delta)
+	else
+		pointCapLimit = math.max(100, pointCapLimit + delta)
+	end
+	if getPoints() < getEffectiveCap() then
+		pointsCapped = false
+	end
 end
 
 -- คืนค่าข้อความ progress: "+1,000 Gold ผ่านมาแล้ว 01 ชม 03 นาที"
@@ -451,10 +503,12 @@ task.spawn(function()
 			local pts = getPoints() local timer = getTimerValue()
 			local capNow = getEffectiveCap()
 
-			-- Keep cap state synced with current round points.
-			if pts >= capNow then
+			-- No outsiders = no point cap. Re-enable automatically if an outsider joins.
+			if not hasOutsider() then
+				pointsCapped = false
+			elseif pts >= capNow then
 				pointsCapped = true
-			elseif pointsCapped then
+			else
 				pointsCapped = false
 			end
 			if timer > 0 and timer <= 2 and not timerTpDone and not roundPaused then
@@ -473,6 +527,10 @@ end)
 -- startFarm
 local function startFarm()
 	if starting then return end starting = true loopMain = false makeBase()
+	if IS_MAIN then
+		buyBakugou()
+		task.wait(0.5)
+	end
 	local farmCharacter = IS_MAIN and "Bakugou" or "Ichigo"
 	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
 	task.wait(2.5) resetChar() task.wait(2.5)
@@ -570,7 +628,7 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6_2" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_6_4" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -606,7 +664,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.2"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.4"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -679,9 +737,13 @@ stopBtn.MouseButton1Click:Connect(function()
 	setStatus("Idle")
 end)
 capMinus.MouseButton1Click:Connect(function()
-	pointCapLimit = math.max(10000, pointCapLimit-10000) capLbl.Text = "🎯 Cap: "..pointCapLimit end)
+	adjustEffectiveCap(-10000)
+	capLbl.Text = hasOutsider() and ("🎯 Cap: "..getEffectiveCap()) or "🎯 Cap: OFF (Private)"
+end)
 capPlus.MouseButton1Click:Connect(function()
-	pointCapLimit = pointCapLimit + 10000 capLbl.Text = "🎯 Cap: "..pointCapLimit end)
+	adjustEffectiveCap(10000)
+	capLbl.Text = hasOutsider() and ("🎯 Cap: "..getEffectiveCap()) or "🎯 Cap: OFF (Private)"
+end)
 renderBtn.MouseButton1Click:Connect(function()
 	renderEnabled = not renderEnabled
 	game:GetService("RunService"):Set3dRenderingEnabled(renderEnabled)
@@ -705,13 +767,14 @@ task.spawn(function()
 	while gui and gui.Parent do
 		local timer = getTimerValue()
 		local info = " | Lv:"..getLevel().." | t="..timer
+		capLbl.Text = hasOutsider() and ("🎯 Cap: "..getEffectiveCap()) or "🎯 Cap: OFF (Private)"
 		if starting then
 			setStatus("Starting...", Color3.fromRGB(255,200,50))
 		elseif roundPaused then
 			setStatus("⏸ "..(roundPauseReason or "Paused")..info, Color3.fromRGB(255,80,80))
 		elseif timerTpDone then
 			setStatus("⏱ Safe zone"..info, Color3.fromRGB(255,165,0))
-		elseif pointsCapped then
+		elseif pointsCapped and hasOutsider() then
 			setStatus("🎯 Cap! pts="..getPoints().." (cap="..getEffectiveCap()..")"..info, Color3.fromRGB(255,215,0))
 		elseif loopMain then
 			setStatus("🎮 "..FARM_ROLE..info, Color3.fromRGB(100,200,255))
