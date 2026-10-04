@@ -1,4 +1,4 @@
---- V.8.6.4 MAIN Bakugou Auto Buy + Smart Private Cap + Fixed Cap Buttons
+--- V.8.6.5 Stable Team Pad + End Reset + Admin BlackScreen
 repeat task.wait(0.1) until game:IsLoaded()
 
 -- ===== CONFIG =====
@@ -65,6 +65,7 @@ local roundPauseReason = nil
 local roundResetting   = false
 local handledChar   = nil
 local timerTpDone   = false
+local endRoundResetDone = false
 local gui           = nil
 local pointCapLimit = 1000
 local GOLD_THRESHOLD   = 30000
@@ -512,11 +513,22 @@ task.spawn(function()
 				pointsCapped = false
 			end
 			if timer > 0 and timer <= 2 and not timerTpDone and not roundPaused then
-				timerTpDone = true tpToSafeZone()
+				timerTpDone = true
+				tpToSafeZone()
+				if not endRoundResetDone then
+					endRoundResetDone = true
+					task.spawn(function()
+						task.wait(0.25)
+						if loopMain then resetChar() end
+					end)
+				end
 			end
 			if timerTpDone then
-				local pad = workspace:FindFirstChild("Red Team") or workspace:FindFirstChild("Blue Team") or workspace:FindFirstChild("Green Team")
-				if timer > 30 or pad then timerTpDone = false end
+				local pad = workspace:FindFirstChild("Red Team") or workspace:FindFirstChild("Blue Team") or workspace:FindFirstChild("Green Team") or workspace:FindFirstChild("Yellow Team")
+				if timer > 30 or pad then
+					timerTpDone = false
+					endRoundResetDone = false
+				end
 			end
 		else
 			pointsCapped = false timerTpDone = false
@@ -536,7 +548,7 @@ local function startFarm()
 	task.wait(2.5) resetChar() task.wait(2.5)
 	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
 	task.wait(2.5)
-	roundPaused=false roundPauseReason=nil roundResetting=false timerTpDone=false pointsCapped=false
+	roundPaused=false roundPauseReason=nil roundResetting=false timerTpDone=false endRoundResetDone=false pointsCapped=false
 	loopMain = true
 	sendWebhook(FARM_ROLE.." Farm Started")
 	starting = false
@@ -544,6 +556,13 @@ end
 
 -- Team selection — MAIN and AFK use opposing teams
 local allTeamPads = {"Red Team", "Blue Team", "Green Team", "Yellow Team"}
+
+local function hasAnyTeamPad()
+	for _, name in ipairs(allTeamPads) do
+		if workspace:FindFirstChild(name) then return true end
+	end
+	return false
+end
 
 local function getMyTeamPad()
 	if not workspace:FindFirstChild("Red Team") and not workspace:FindFirstChild("Blue Team") then return nil end
@@ -562,21 +581,32 @@ local function getMyTeamPad()
 end
 
 local function selectTeam()
-	if selectingTeam then return end selectingTeam = true
-	local pad = getMyTeamPad()
-	if not pad then selectingTeam = false return end
-	while pad and pad.Parent and not roundPaused do
-		-- เช็คว่า pad ยังอยู่ไหม
+	if selectingTeam then return end
+	selectingTeam = true
+
+	while gui and gui.Parent and loopMain and not roundPaused and hasAnyTeamPad() do
 		local currentPad = getMyTeamPad()
-		if not currentPad then break end
 		local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
+
+		if currentPad and hrp then
 			local pp = currentPad:IsA("BasePart") and currentPad or currentPad:FindFirstChildWhichIsA("BasePart")
-			if pp then hrp.CFrame = pp.CFrame + Vector3.new(0,3,0) end
+			if pp then
+				pcall(function()
+					hrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
+					hrp.AssemblyAngularVelocity = Vector3.new(0,0,0)
+					hrp.CFrame = pp.CFrame + Vector3.new(0,3,0)
+				end)
+			end
 		end
+
 		task.wait(0.1)
 	end
-	task.wait(0.5) selectingTeam = false
+
+	-- Do not release farm TP until team pads are really gone.
+	if gui and gui.Parent and loopMain and not roundPaused then
+		task.wait(0.35)
+	end
+	selectingTeam = false
 end
 
 task.spawn(function()
@@ -628,8 +658,8 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6_4" gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
+gui.Name = "WWHub_GUI_v8_6_5" gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 1000000 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0,42,0,42) toggleBtn.Position = UDim2.new(0,10,0.5,-21)
@@ -640,7 +670,7 @@ Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(0,10)
 local tst = Instance.new("UIStroke",toggleBtn) tst.Color = Color3.fromRGB(110,40,200) tst.Thickness = 2
 
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0,270,0,290) panel.Position = UDim2.new(0.5,-135,0.5,-145)
+panel.Size = UDim2.new(0,270,0,350) panel.Position = UDim2.new(0.5,-135,0.5,-175)
 panel.BackgroundColor3 = Color3.fromRGB(14,14,22) panel.BorderSizePixel = 0 panel.Active = true panel.Parent = gui
 Instance.new("UICorner",panel).CornerRadius = UDim.new(0,14)
 local pst = Instance.new("UIStroke",panel) pst.Color = Color3.fromRGB(100,35,190) pst.Thickness = 2
@@ -664,7 +694,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.4"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.5"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -715,10 +745,86 @@ local renderBtn = mkBtn("👁 Render: ON", Color3.fromRGB(0,120,210), 233)
 renderBtn.TextSize = 14
 
 local destroyBtn = Instance.new("TextButton")
-destroyBtn.Size = UDim2.new(1,-20,0,26) destroyBtn.Position = UDim2.new(0,10,1,-34)
+destroyBtn.Size = UDim2.new(1,-20,0,26) destroyBtn.Position = UDim2.new(0,10,0,287)
 destroyBtn.BackgroundColor3 = Color3.fromRGB(35,35,50) destroyBtn.Text = "❌ Destroy GUI"
 destroyBtn.TextColor3 = Color3.fromRGB(200,200,220) destroyBtn.TextSize = 12 destroyBtn.Font = Enum.Font.GothamBold
 destroyBtn.Parent = panel Instance.new("UICorner",destroyBtn).CornerRadius = UDim.new(0,8)
+
+-- ===== Admin BlackScreen =====
+local ADMIN_PASSWORD = "hahaha123"
+local adminUnlocked = false
+local blackScreenEnabled = true
+
+local oldBlack = LP:WaitForChild("PlayerGui"):FindFirstChild("WWHub_BlackScreen")
+if oldBlack then oldBlack:Destroy() end
+
+local blackGui = Instance.new("ScreenGui")
+blackGui.Name = "WWHub_BlackScreen"
+blackGui.ResetOnSpawn = false
+blackGui.IgnoreGuiInset = true
+blackGui.DisplayOrder = 999999
+blackGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+blackGui.Parent = LP.PlayerGui
+
+local blackFrame = Instance.new("Frame")
+blackFrame.Size = UDim2.fromScale(1,1)
+blackFrame.Position = UDim2.fromScale(0,0)
+blackFrame.BackgroundColor3 = Color3.new(0,0,0)
+blackFrame.BorderSizePixel = 0
+blackFrame.ZIndex = 1
+blackFrame.Parent = blackGui
+
+local adminBox = Instance.new("TextBox")
+adminBox.Size = UDim2.new(0,165,0,26)
+adminBox.Position = UDim2.new(0,10,0,318)
+adminBox.BackgroundColor3 = Color3.fromRGB(28,28,42)
+adminBox.TextColor3 = Color3.fromRGB(235,235,245)
+adminBox.PlaceholderColor3 = Color3.fromRGB(125,125,145)
+adminBox.PlaceholderText = "Admin password"
+adminBox.Text = ""
+adminBox.ClearTextOnFocus = false
+adminBox.TextSize = 12
+adminBox.Font = Enum.Font.Gotham
+adminBox.Parent = panel
+Instance.new("UICorner",adminBox).CornerRadius = UDim.new(0,7)
+
+local blackToggleBtn = Instance.new("TextButton")
+blackToggleBtn.Size = UDim2.new(0,79,0,26)
+blackToggleBtn.Position = UDim2.new(0,181,0,318)
+blackToggleBtn.BackgroundColor3 = Color3.fromRGB(55,55,72)
+blackToggleBtn.Text = "BLACK: ON"
+blackToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+blackToggleBtn.TextSize = 11
+blackToggleBtn.Font = Enum.Font.GothamBold
+blackToggleBtn.Visible = false
+blackToggleBtn.Parent = panel
+Instance.new("UICorner",blackToggleBtn).CornerRadius = UDim.new(0,7)
+
+local function setBlackScreen(state)
+	blackScreenEnabled = state and true or false
+	if blackFrame then blackFrame.Visible = blackScreenEnabled end
+	blackToggleBtn.Text = blackScreenEnabled and "BLACK: ON" or "BLACK: OFF"
+	blackToggleBtn.BackgroundColor3 = blackScreenEnabled and Color3.fromRGB(35,105,55) or Color3.fromRGB(150,45,45)
+end
+
+setBlackScreen(true)
+
+adminBox.FocusLost:Connect(function()
+	if adminBox.Text == ADMIN_PASSWORD then
+		adminUnlocked = true
+		adminBox.Text = ""
+		adminBox.PlaceholderText = "Admin unlocked"
+		blackToggleBtn.Visible = true
+	else
+		adminBox.Text = ""
+		adminBox.PlaceholderText = "Wrong password"
+	end
+end)
+
+blackToggleBtn.MouseButton1Click:Connect(function()
+	if not adminUnlocked then return end
+	setBlackScreen(not blackScreenEnabled)
+end)
 
 local function setStatus(txt,col)
 	statusLbl.Text = "📊 "..txt
@@ -751,7 +857,7 @@ renderBtn.MouseButton1Click:Connect(function()
 	renderBtn.BackgroundColor3 = renderEnabled and Color3.fromRGB(0,120,210) or Color3.fromRGB(170,35,35)
 end)
 closeBtn.MouseButton1Click:Connect(function() panel.Visible = false end)
-destroyBtn.MouseButton1Click:Connect(function() loopMain = false gui:Destroy() end)
+destroyBtn.MouseButton1Click:Connect(function() loopMain = false if blackGui then blackGui:Destroy() end gui:Destroy() end)
 
 -- Auto-start
 task.spawn(function()
@@ -799,8 +905,12 @@ task.spawn(function()
 	while gui.Parent do
 		task.wait(0.08)
 		if not loopMain then continue end
-		local pad = getMyTeamPad()
-		if pad and not selectingTeam and not roundPaused and not timerTpDone then task.spawn(selectTeam) end
+
+		if hasAnyTeamPad() and not roundPaused and not timerTpDone then
+			if not selectingTeam then task.spawn(selectTeam) end
+			continue
+		end
+
 		if not selectingTeam and not starting and not roundPaused and not timerTpDone then
 			local mcf = getMainCF()
 			if not isNearCF(mcf, tpDist) then tpToCF(mcf) end
