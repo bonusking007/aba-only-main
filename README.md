@@ -1,4 +1,4 @@
---- V.8.6.6 Stable Team Pad + End Reset + AFK World Return
+--- V.8.6.7 Distributed Main Teams + AFK Opposite + AFK World Return
 repeat task.wait(0.1) until game:IsLoaded()
 
 local TeleportService = game:GetService("TeleportService")
@@ -578,18 +578,28 @@ local function hasAnyTeamPad()
 end
 
 local function getMyTeamPad()
-	if not workspace:FindFirstChild("Red Team") and not workspace:FindFirstChild("Blue Team") then return nil end
 	local availablePads = {}
 	for _, name in ipairs(allTeamPads) do
-		if workspace:FindFirstChild(name) then table.insert(availablePads, name) end
+		if workspace:FindFirstChild(name) then
+			table.insert(availablePads, name)
+		end
 	end
 	if #availablePads == 0 then return nil end
-	local padIndex
-	if IS_AFK and #availablePads >= 2 then
-		padIndex = 2
-	else
-		padIndex = 1
+
+	local padIndex = 1
+	if IS_MAIN then
+		local mainIndex = getRoleIndex(_G.main)
+		padIndex = ((mainIndex - 1) % #availablePads) + 1
+	elseif IS_AFK then
+		local afkIndex = getRoleIndex(_G.afk)
+		if #availablePads >= 2 then
+			-- Put each ALT on the next color from its paired MAIN.
+			padIndex = (afkIndex % #availablePads) + 1
+		else
+			padIndex = 1
+		end
 	end
+
 	return workspace:FindFirstChild(availablePads[padIndex])
 end
 
@@ -671,7 +681,7 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6_6" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_6_7" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -707,7 +717,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.6"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.7"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
