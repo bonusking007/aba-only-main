@@ -1,4 +1,4 @@
---- V.8.6.7 Distributed Main Teams + AFK Opposite + AFK World Return
+--- V.8.6.8 Reset Reason Notify + TeamBattle Lives False-Positive Fix
 repeat task.wait(0.1) until game:IsLoaded()
 
 local TeleportService = game:GetService("TeleportService")
@@ -27,7 +27,20 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
 local UIS     = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
 local LP      = Players.LocalPlayer
+
+local resetSequence = 0
+local function notifyAction(title, message, duration)
+	pcall(function()
+		StarterGui:SetCore("SendNotification",{
+			Title = title or "WWHub",
+			Text = tostring(message or ""),
+			Duration = duration or 5
+		})
+	end)
+	warn(("[WWHub] %s | %s"):format(tostring(title or "WWHub"), tostring(message or "")))
+end
 
 local myName = LP.Name
 local IS_MAIN = false
@@ -237,11 +250,18 @@ local function afterCharLoaded(char)
 	char:WaitForChild("HumanoidRootPart", 10) char:WaitForChild("Humanoid", 10)
 	task.wait(1) fireRespawnDone() task.wait(0.2) forceFieldOff()
 end
-local function resetChar()
+local function resetChar(reason)
+	resetSequence += 1
+	notifyAction("WWHub Reset",("#%d | %s"):format(resetSequence,reason or "Unknown reason"),6)
 	local c = getChar()
-	if c then local h = c:FindFirstChildOfClass("Humanoid") if h then h.Health = 0 end end
+	if c then
+		local h = c:FindFirstChildOfClass("Humanoid")
+		if h and h.Health > 0 then h.Health = 0 end
+	end
 	pcall(function() game:GetService("ReplicatedStorage"):WaitForChild("Loaded"):FireServer() end)
-	task.wait(1) local nc = getChar() if nc then afterCharLoaded(nc) end
+	task.wait(1)
+	local nc = getChar()
+	if nc then afterCharLoaded(nc) end
 end
 
 -- ===== Stats =====
@@ -374,20 +394,65 @@ local function sendWebhook(label)
 end
 
 -- ===== Blocked Mode =====
+local function isVisibleGuiObject(obj)
+	if not obj or not obj:IsA("GuiObject") then return false end
+	if not obj.Visible then return false end
+	local p = obj.Parent
+	while p and p ~= LP.PlayerGui do
+		if p:IsA("GuiObject") and not p.Visible then return false end
+		p = p.Parent
+	end
+	return true
+end
+
+local function getVisibleTeamModeHint()
+	local pg = LP:FindFirstChild("PlayerGui")
+	local lb = pg and pg:FindFirstChild("CustomLeaderboard")
+	if not lb then return nil end
+	for _,obj in ipairs(lb:GetDescendants()) do
+		if (obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton")) and isVisibleGuiObject(obj) then
+			local tx = tostring(obj.Text or ""):lower()
+			if tx:find("team battle",1,true) then return "Team Battle" end
+			if tx:find("kills team",1,true) then return "Kills Team" end
+			if tx:find("3 teams",1,true) then return "3 Teams" end
+		end
+	end
+	return nil
+end
+
 local function getBlockedMode()
-	local pg = LP:FindFirstChild("PlayerGui") if not pg then return nil end
-	local lb = pg:FindFirstChild("CustomLeaderboard") if not lb then return nil end
+	local pg = LP:FindFirstChild("PlayerGui")
+	if not pg then return nil end
+	local lb = pg:FindFirstChild("CustomLeaderboard")
+	if not lb then return nil end
 	local m = lb:FindFirstChild("Main") or lb
-	if m:FindFirstChild("Juggernaut",true) then return "Juggernaut" end
-	if m:FindFirstChild("Lives",true)      then return "Lives"      end
-	for _, obj in ipairs(m:GetDescendants()) do
-		local nm = (obj.Name or ""):lower()
-		if nm:find("juggernaut") then return "Juggernaut" end
-		if nm:find("lives")      then return "Lives"      end
-		if obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton") then
-			local tx = (obj.Text or ""):lower()
-			if tx:find("juggernaut") then return "Juggernaut" end
-			if tx:find("lives")      then return "Lives"      end
+
+	-- Strong Juggernaut detection.
+	for _,obj in ipairs(m:GetDescendants()) do
+		local nm = tostring(obj.Name or ""):lower()
+		if nm == "juggernaut" or nm:find("juggernaut",1,true) then
+			return "Juggernaut"
+		end
+		if (obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton")) and isVisibleGuiObject(obj) then
+			local tx = tostring(obj.Text or ""):lower()
+			if tx:find("juggernaut",1,true) then return "Juggernaut" end
+		end
+	end
+
+	-- In an active team round, a generic Lives object must NOT trigger reset.
+	if LP.Team ~= nil or getVisibleTeamModeHint() then
+		return nil
+	end
+
+	-- Lives must contain an actual numeric lives value, not only an object named "Lives".
+	for _,obj in ipairs(m:GetDescendants()) do
+		if (obj:IsA("IntValue") or obj:IsA("NumberValue")) and tostring(obj.Name or ""):lower() == "lives" then
+			local n = tonumber(obj.Value)
+			if n and n > 0 then return "Lives" end
+		elseif (obj:IsA("TextLabel") or obj:IsA("TextBox") or obj:IsA("TextButton")) and isVisibleGuiObject(obj) then
+			local tx = tostring(obj.Text or "")
+			local n = tx:match("[Ll][Ii][Vv][Ee][Ss]%s*:%s*(%d+)") or tx:match("[Ll][Ii][Vv][Ee][Ss]%s+(%d+)")
+			if tonumber(n) and tonumber(n) > 0 then return "Lives" end
 		end
 	end
 	return nil
@@ -463,8 +528,12 @@ local function drainLives()
 		local oldChar = getChar()
 		local hum = oldChar and oldChar:FindFirstChildOfClass("Humanoid")
 		if hum and hum.Health > 0 then
-			pcall(function() hum.Health = 0 end)
 			resetCount += 1
+			resetSequence += 1
+			notifyAction("WWHub Reset",("#%d | Blocked %s | Lives=%s | Drain #%d"):format(
+				resetSequence,tostring(bm or roundPauseReason or "Unknown"),tostring(lives or "?"),resetCount
+			),6)
+			pcall(function() hum.Health = 0 end)
 
 			pcall(function()
 				ReplicatedStorage:WaitForChild("Loaded"):FireServer()
@@ -482,7 +551,9 @@ end
 local function pauseFarm(reason)
 	if roundPaused then return end
 	roundPaused = true roundPauseReason = reason or "Blocked"
-	pointsCapped = false sendWebhook("Farm Paused — "..roundPauseReason)
+	pointsCapped = false
+	notifyAction("Farm Paused","Blocked mode confirmed: "..roundPauseReason.." -> reset/drain",6)
+	sendWebhook("Farm Paused — "..roundPauseReason)
 	if roundResetting then return end roundResetting = true
 	task.spawn(function()
 		-- Juggernaut/Lives: reset repeatedly until Lives reaches 0
@@ -505,7 +576,10 @@ local function pauseFarm(reason)
 
 		local last = roundPauseReason
 		roundPaused=false roundPauseReason=nil roundResetting=false
-		if gui and gui.Parent and loopMain then sendWebhook("Farm Resumed — "..last) end
+		if gui and gui.Parent and loopMain then
+			notifyAction("Farm Resumed","Blocked mode cleared: "..tostring(last),5)
+			sendWebhook("Farm Resumed — "..last)
+		end
 	end)
 end
 
@@ -527,12 +601,13 @@ task.spawn(function()
 			end
 			if timer > 0 and timer <= 2 and not timerTpDone and not roundPaused then
 				timerTpDone = true
+				notifyAction("Farm Action","End round timer <= 2 -> TP Safe Zone",4)
 				tpToSafeZone()
 				if not endRoundResetDone then
 					endRoundResetDone = true
 					task.spawn(function()
 						task.wait(0.25)
-						if loopMain then resetChar() end
+						if loopMain then resetChar("End round: timer <= 2") end
 					end)
 				end
 			end
@@ -558,7 +633,7 @@ local function startFarm()
 	end
 	local farmCharacter = IS_MAIN and "Bakugou" or "Ichigo"
 	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
-	task.wait(2.5) resetChar() task.wait(2.5)
+	task.wait(2.5) resetChar("Startup character sync") task.wait(2.5)
 	fireInput("CharacterButton",farmCharacter) task.wait(0.2) fireInput("ClickPlay")
 	task.wait(2.5)
 	roundPaused=false roundPauseReason=nil roundResetting=false timerTpDone=false endRoundResetDone=false pointsCapped=false
@@ -681,7 +756,7 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6_7" gui.ResetOnSpawn = false
+gui.Name = "WWHub_GUI_v8_6_8" gui.ResetOnSpawn = false
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
@@ -717,7 +792,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.7"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.8"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -875,11 +950,34 @@ task.spawn(function()
 end)
 
 task.spawn(function()
+	local candidate = nil
+	local candidateHits = 0
 	while gui.Parent do
-		if loopMain and not starting and not roundPaused then
-			local bm = getBlockedMode() if bm then pauseFarm(bm) end
+		if loopMain and not starting and not roundPaused and not selectingTeam and not hasAnyTeamPad() then
+			local bm = getBlockedMode()
+			if bm then
+				if candidate == bm then
+					candidateHits += 1
+				else
+					candidate = bm
+					candidateHits = 1
+				end
+				if candidateHits >= 3 then
+					notifyAction("Mode Check","Confirmed "..bm.." 3x -> safety reset enabled",5)
+					pauseFarm(bm)
+					candidate = nil
+					candidateHits = 0
+				end
+			else
+				candidate = nil
+				candidateHits = 0
+			end
 			task.wait(0.5)
-		else task.wait(2) end
+		else
+			candidate = nil
+			candidateHits = 0
+			task.wait(1)
+		end
 	end
 end)
 
