@@ -1,5 +1,19 @@
---- V.8.6.5 Stable Team Pad + End Reset + Admin BlackScreen
+--- V.8.6.6 Stable Team Pad + End Reset + AFK World Return
 repeat task.wait(0.1) until game:IsLoaded()
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local EarlyLP = Players.LocalPlayer
+
+local MAIN_PLACE_ID = 1458767429
+local AFK_WORLD_PLACE_ID = 5411459567
+
+if game.PlaceId == AFK_WORLD_PLACE_ID then
+	pcall(function()
+		TeleportService:Teleport(MAIN_PLACE_ID, EarlyLP)
+	end)
+	return
+end
 
 -- ===== CONFIG =====
 _G.main = {"TurboPanda97962Y", "LuckyViper95203U", "ShadowComet48801U", "wasd"}
@@ -9,7 +23,6 @@ _G.afk  = {"wasd", "asd"}
 
 
 setfpscap(20)
-local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local VUser   = game:GetService("VirtualUser")
 local Http    = game:GetService("HttpService")
@@ -658,8 +671,8 @@ end)
 
 -- ===== GUI =====
 gui = Instance.new("ScreenGui")
-gui.Name = "WWHub_GUI_v8_6_5" gui.ResetOnSpawn = false
-gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 1000000 gui.Parent = game.CoreGui
+gui.Name = "WWHub_GUI_v8_6_6" gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling gui.DisplayOrder = 0 gui.Parent = game.CoreGui
 
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Size = UDim2.new(0,42,0,42) toggleBtn.Position = UDim2.new(0,10,0.5,-21)
@@ -670,7 +683,7 @@ Instance.new("UICorner",toggleBtn).CornerRadius = UDim.new(0,10)
 local tst = Instance.new("UIStroke",toggleBtn) tst.Color = Color3.fromRGB(110,40,200) tst.Thickness = 2
 
 local panel = Instance.new("Frame")
-panel.Size = UDim2.new(0,270,0,350) panel.Position = UDim2.new(0.5,-135,0.5,-175)
+panel.Size = UDim2.new(0,270,0,290) panel.Position = UDim2.new(0.5,-135,0.5,-145)
 panel.BackgroundColor3 = Color3.fromRGB(14,14,22) panel.BorderSizePixel = 0 panel.Active = true panel.Parent = gui
 Instance.new("UICorner",panel).CornerRadius = UDim.new(0,14)
 local pst = Instance.new("UIStroke",panel) pst.Color = Color3.fromRGB(100,35,190) pst.Thickness = 2
@@ -694,7 +707,7 @@ Instance.new("UICorner",header).CornerRadius = UDim.new(0,14)
 
 local titleLbl = Instance.new("TextLabel")
 titleLbl.Size = UDim2.new(1,-50,1,0) titleLbl.Position = UDim2.new(0,12,0,0)
-titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.5"
+titleLbl.BackgroundTransparency = 1 titleLbl.Text = "⚡ WW Hub v8.6.6"
 titleLbl.TextColor3 = Color3.fromRGB(155,80,255) titleLbl.TextSize = 18 titleLbl.Font = Enum.Font.GothamBold
 titleLbl.TextXAlignment = Enum.TextXAlignment.Left titleLbl.Parent = header
 
@@ -745,86 +758,10 @@ local renderBtn = mkBtn("👁 Render: ON", Color3.fromRGB(0,120,210), 233)
 renderBtn.TextSize = 14
 
 local destroyBtn = Instance.new("TextButton")
-destroyBtn.Size = UDim2.new(1,-20,0,26) destroyBtn.Position = UDim2.new(0,10,0,287)
+destroyBtn.Size = UDim2.new(1,-20,0,26) destroyBtn.Position = UDim2.new(0,10,1,-34)
 destroyBtn.BackgroundColor3 = Color3.fromRGB(35,35,50) destroyBtn.Text = "❌ Destroy GUI"
 destroyBtn.TextColor3 = Color3.fromRGB(200,200,220) destroyBtn.TextSize = 12 destroyBtn.Font = Enum.Font.GothamBold
 destroyBtn.Parent = panel Instance.new("UICorner",destroyBtn).CornerRadius = UDim.new(0,8)
-
--- ===== Admin BlackScreen =====
-local ADMIN_PASSWORD = "hahaha123"
-local adminUnlocked = false
-local blackScreenEnabled = true
-
-local oldBlack = LP:WaitForChild("PlayerGui"):FindFirstChild("WWHub_BlackScreen")
-if oldBlack then oldBlack:Destroy() end
-
-local blackGui = Instance.new("ScreenGui")
-blackGui.Name = "WWHub_BlackScreen"
-blackGui.ResetOnSpawn = false
-blackGui.IgnoreGuiInset = true
-blackGui.DisplayOrder = 999999
-blackGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-blackGui.Parent = LP.PlayerGui
-
-local blackFrame = Instance.new("Frame")
-blackFrame.Size = UDim2.fromScale(1,1)
-blackFrame.Position = UDim2.fromScale(0,0)
-blackFrame.BackgroundColor3 = Color3.new(0,0,0)
-blackFrame.BorderSizePixel = 0
-blackFrame.ZIndex = 1
-blackFrame.Parent = blackGui
-
-local adminBox = Instance.new("TextBox")
-adminBox.Size = UDim2.new(0,165,0,26)
-adminBox.Position = UDim2.new(0,10,0,318)
-adminBox.BackgroundColor3 = Color3.fromRGB(28,28,42)
-adminBox.TextColor3 = Color3.fromRGB(235,235,245)
-adminBox.PlaceholderColor3 = Color3.fromRGB(125,125,145)
-adminBox.PlaceholderText = "Admin password"
-adminBox.Text = ""
-adminBox.ClearTextOnFocus = false
-adminBox.TextSize = 12
-adminBox.Font = Enum.Font.Gotham
-adminBox.Parent = panel
-Instance.new("UICorner",adminBox).CornerRadius = UDim.new(0,7)
-
-local blackToggleBtn = Instance.new("TextButton")
-blackToggleBtn.Size = UDim2.new(0,79,0,26)
-blackToggleBtn.Position = UDim2.new(0,181,0,318)
-blackToggleBtn.BackgroundColor3 = Color3.fromRGB(55,55,72)
-blackToggleBtn.Text = "BLACK: ON"
-blackToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
-blackToggleBtn.TextSize = 11
-blackToggleBtn.Font = Enum.Font.GothamBold
-blackToggleBtn.Visible = false
-blackToggleBtn.Parent = panel
-Instance.new("UICorner",blackToggleBtn).CornerRadius = UDim.new(0,7)
-
-local function setBlackScreen(state)
-	blackScreenEnabled = state and true or false
-	if blackFrame then blackFrame.Visible = blackScreenEnabled end
-	blackToggleBtn.Text = blackScreenEnabled and "BLACK: ON" or "BLACK: OFF"
-	blackToggleBtn.BackgroundColor3 = blackScreenEnabled and Color3.fromRGB(35,105,55) or Color3.fromRGB(150,45,45)
-end
-
-setBlackScreen(true)
-
-adminBox.FocusLost:Connect(function()
-	if adminBox.Text == ADMIN_PASSWORD then
-		adminUnlocked = true
-		adminBox.Text = ""
-		adminBox.PlaceholderText = "Admin unlocked"
-		blackToggleBtn.Visible = true
-	else
-		adminBox.Text = ""
-		adminBox.PlaceholderText = "Wrong password"
-	end
-end)
-
-blackToggleBtn.MouseButton1Click:Connect(function()
-	if not adminUnlocked then return end
-	setBlackScreen(not blackScreenEnabled)
-end)
 
 local function setStatus(txt,col)
 	statusLbl.Text = "📊 "..txt
@@ -857,7 +794,7 @@ renderBtn.MouseButton1Click:Connect(function()
 	renderBtn.BackgroundColor3 = renderEnabled and Color3.fromRGB(0,120,210) or Color3.fromRGB(170,35,35)
 end)
 closeBtn.MouseButton1Click:Connect(function() panel.Visible = false end)
-destroyBtn.MouseButton1Click:Connect(function() loopMain = false if blackGui then blackGui:Destroy() end gui:Destroy() end)
+destroyBtn.MouseButton1Click:Connect(function() loopMain = false gui:Destroy() end)
 
 -- Auto-start
 task.spawn(function()
